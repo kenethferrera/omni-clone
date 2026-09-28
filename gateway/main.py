@@ -9,6 +9,16 @@ from dataclasses import dataclass
 from typing import Optional, Dict, Any
 from unittest.mock import MagicMock
 
+# Mock PyTorch and AI dependencies so CPU container can launch UI without loading heavy VRAM weights
+for p in [
+    'torch', 'torch.nn', 'torch.nn.functional', 'torch.cuda', 'torch.optim',
+    'torchaudio', 'transformers', 'huggingface_hub', 'safetensors', 'librosa', 'einops'
+]:
+    m = MagicMock()
+    m.__path__ = []
+    m.__spec__ = MagicMock()
+    sys.modules[p] = m
+
 import numpy as np
 import soundfile as sf
 import gradio as gr
@@ -44,7 +54,6 @@ app.add_middleware(
 )
 
 
-# Mock heavy PyTorch model imports from native omnivoice package so CPU container can launch UI instantly
 @dataclass
 class OmniVoiceGenerationConfig:
     num_step: int = 32
