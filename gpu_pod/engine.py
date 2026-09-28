@@ -40,6 +40,19 @@ class OmniVoiceEngine:
 
         try:
             import torch
+            import builtins
+            import torch.nn as nn
+            builtins.nn = nn
+
+            # Also patch transformers.integrations.accelerate if needed
+            try:
+                import sys
+                import importlib
+                if "transformers.integrations.accelerate" in sys.modules:
+                    sys.modules["transformers.integrations.accelerate"].nn = nn
+            except Exception:
+                pass
+
             try:
                 try:
                     from omnivoice import OmniVoice
