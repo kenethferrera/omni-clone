@@ -36,19 +36,93 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mount Web Studio UI
-static_dir = os.path.join(os.path.dirname(__file__), "static")
-if os.path.exists(static_dir):
-    app.mount("/static", StaticFiles(directory=static_dir), name="static")
+import sys
+import io
+import base64
+import numpy as np
+import soundfile as sf
+import gradio as gr
+
+# Ensure OmniVoice repository is in sys.path
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__)), "OmniVoice"))
+try:
+    from omnivoice.cli.demo import build_demo
+except ImportError:
+    sys.path.insert(0, "/app/OmniVoice")
+    from omnivoice.cli.demo import build_demo
 
 
-@app.get("/", include_in_schema=False)
-async def serve_web_interface():
-    """Serve the Web Studio Interface at root route."""
-    index_path = os.path.join(static_dir, "index.html")
-    if os.path.exists(index_path):
-        return FileResponse(index_path)
-    return {"message": settings.APP_NAME}
+class DummyModel:
+    sampling_rate = 24000
+
+
+def remote_generate_fn(
+    text: str,
+    language: Optional[str],
+    ref_audio: Optional[str],
+    instruct: Optional[str],
+    num_step: int,
+    guidance_scale: float,
+    denoise: bool,
+    speed: float,
+    duration: Optional[float],
+    preprocess_prompt: bool,
+    postprocess_output: bool,
+    mode: str,
+    ref_text: Optional[str] = None,
+):
+    if not text or not text.strip():
+        return None, "Please enter the text to synthesize."
+
+    ref_audio_b64 = None
+    if mode == "clone":
+        if not ref_audio:
+            return None, "Please upload a reference audio."
+        try:
+            with open(ref_audio, "rb") as f:
+                ref_audio_b64 = base64.b64encode(f.read()).decode("utf-8")
+        except Exception as e:
+            return None, f"Failed to read reference audio: {e}"
+
+    try:
+        audio_bytes = runpod_client.generate_speech_full(
+            text=text.strip(),
+            ref_audio_base64=ref_audio_b64,
+            ref_text=ref_text,
+            instruct=instruct,
+            language=language,
+            num_step=num_step,
+            guidance_scale=guidance_scale,
+            denoise=denoise,
+            speed=speed,
+            duration=duration,
+            preprocess_prompt=preprocess_prompt,
+            postprocess_output=postprocess_output,
+            mode=mode,
+        )
+
+        wav_io = io.BytesIO(audio_bytes)
+        data, samplerate = sf.read(wav_io)
+        if data.dtype == np.float32 or data.dtype == np.float64:
+            data = (data * 32767).astype(np.int16)
+
+        return (samplerate, data), "Done."
+
+    except Exception as e:
+        logger.error(f"Remote generation failed: {e}")
+        return None, f"Error: {type(e).__name__}: {e}"
+
+
+# Build official Gradio demo UI from k2-fsa/OmniVoice repo
+official_demo = build_demo(
+    model=DummyModel(),
+    checkpoint="k2-fsa/OmniVoice",
+    generate_fn=remote_generate_fn
+)
+
+# Mount official Gradio UI on FastAPI app at root path
+app = gr.mount_gradio_app(app, official_demo, path="/")
+
 
 
 # Simple In-Memory Job Metadata Tracker

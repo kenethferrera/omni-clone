@@ -139,5 +139,74 @@ class RunPodInferenceClient:
             except Exception as e:
                 raise RuntimeError(f"Connection to RunPod GPU pod failed: {str(e)}")
 
+    def generate_speech_full(
+        self,
+        text: str,
+        ref_audio_base64: Optional[str] = None,
+        ref_text: Optional[str] = None,
+        instruct: Optional[str] = None,
+        language: Optional[str] = None,
+        num_step: int = 32,
+        guidance_scale: float = 2.0,
+        denoise: bool = True,
+        speed: float = 1.0,
+        duration: Optional[float] = None,
+        preprocess_prompt: bool = True,
+        postprocess_output: bool = True,
+        mode: str = "clone",
+    ) -> bytes:
+        """
+        Synchronous TTS voice cloning/design request for Gradio UI to RunPod Serverless or Direct Pod.
+        Returns raw audio WAV bytes.
+        """
+        if not self.endpoint:
+            raise ValueError("RUNPOD_API_ENDPOINT is not configured in environment settings.")
+
+        payload_input = {
+            "input_text": text,
+            "text": text,
+            "reference_audio": ref_audio_base64,
+            "prompt_text": ref_text,
+            "instruct": instruct,
+            "language": language,
+            "num_step": num_step,
+            "guidance_scale": guidance_scale,
+            "denoise": denoise,
+            "speed": speed,
+            "duration": duration,
+            "preprocess_prompt": preprocess_prompt,
+            "postprocess_output": postprocess_output,
+            "mode": mode,
+        }
+
+        if self.is_serverless():
+            runsync_url = self.endpoint
+            if not runsync_url.endswith("/runsync"):
+                runsync_url = f"{self.endpoint}/runsync"
+
+            logger.info(f"Dispatching Gradio Serverless TTS job ({mode}) to {runsync_url}...")
+            with httpx.Client(timeout=self.timeout) as client:
+                resp = client.post(runsync_url, json={"input": payload_input}, headers=self._get_headers())
+                if resp.status_code != 200:
+                    raise RuntimeError(f"Serverless request error ({resp.status_code}): {resp.text}")
+
+                res_json = resp.json()
+                if res_json.get("status") == "COMPLETED":
+                    output = res_json.get("output", {})
+                    if "audio_base64" in output:
+                        return base64.b64decode(output["audio_base64"])
+                    elif "error" in output:
+                        raise RuntimeError(f"Serverless execution error: {output['error']}")
+                raise RuntimeError(f"Serverless job did not complete cleanly: {res_json}")
+
+        # Direct Pod HTTP Proxy
+        speech_url = f"{self.endpoint}/v1/audio/speech"
+        with httpx.Client(timeout=self.timeout) as client:
+            resp = client.post(speech_url, json=payload_input, headers=self._get_headers())
+            if resp.status_code == 200:
+                return resp.content
+            raise RuntimeError(f"OmniVoice GPU Pod error ({resp.status_code}): {resp.text}")
+
 
 runpod_client = RunPodInferenceClient()
+
