@@ -41,7 +41,11 @@ class OmniVoiceEngine:
         try:
             import torch
             try:
-                from omnivoice.models.omnivoice import OmniVoice
+                try:
+                    from omnivoice import OmniVoice
+                except ImportError:
+                    from omnivoice.models.omnivoice import OmniVoice
+
                 dtype = torch.float16 if self.device == "cuda" else torch.float32
                 try:
                     self.model = OmniVoice.from_pretrained(
@@ -62,8 +66,9 @@ class OmniVoiceEngine:
                     logger.info(f"OmniVoice model loaded successfully in {round(time.time() - start_time, 2)}s!")
                 self.loaded = True
             except Exception as e:
-                logger.warning(f"Native OmniVoice module load notice: {e}. Engine operating in fallback mode.")
-                self.loaded = True
+                import traceback
+                logger.error(f"Native OmniVoice module load notice: {e}\n{traceback.format_exc()}. Engine operating in fallback mode.")
+                self.loaded = False
         except Exception as e:
             logger.error(f"Failed to load PyTorch or OmniVoice: {e}")
             self.loaded = False
