@@ -43,14 +43,24 @@ class OmniVoiceEngine:
             try:
                 from omnivoice.models.omnivoice import OmniVoice
                 dtype = torch.float16 if self.device == "cuda" else torch.float32
-                self.model = OmniVoice.from_pretrained(
-                    self.model_name,
-                    device_map=self.device,
-                    dtype=dtype,
-                    load_asr=True
-                )
+                try:
+                    self.model = OmniVoice.from_pretrained(
+                        self.model_name,
+                        device_map=self.device,
+                        dtype=dtype,
+                        load_asr=True
+                    )
+                    logger.info(f"OmniVoice model + Whisper ASR loaded successfully in {round(time.time() - start_time, 2)}s!")
+                except Exception as asr_err:
+                    logger.warning(f"Could not load with ASR ({asr_err}). Loading OmniVoice standard...")
+                    self.model = OmniVoice.from_pretrained(
+                        self.model_name,
+                        device_map=self.device,
+                        dtype=dtype,
+                        load_asr=False
+                    )
+                    logger.info(f"OmniVoice model loaded successfully in {round(time.time() - start_time, 2)}s!")
                 self.loaded = True
-                logger.info(f"OmniVoice model + Whisper ASR loaded successfully in {round(time.time() - start_time, 2)}s!")
             except Exception as e:
                 logger.warning(f"Native OmniVoice module load notice: {e}. Engine operating in fallback mode.")
                 self.loaded = True
