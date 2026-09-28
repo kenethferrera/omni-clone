@@ -152,5 +152,18 @@ class OmniVoiceEngine:
         sf.write(buffer, audio, sr, format="WAV")
         return buffer.getvalue()
 
+    def get_gpu_info(self):
+        try:
+            import torch
+            if torch.cuda.is_available():
+                return {
+                    "device": torch.cuda.get_device_name(0),
+                    "memory_allocated_gb": round(torch.cuda.memory_allocated(0) / 1024**3, 2),
+                    "memory_reserved_gb": round(torch.cuda.memory_reserved(0) / 1024**3, 2),
+                }
+        except Exception:
+            pass
+        return {"device": "cpu"}
+
 
 engine = OmniVoiceEngine()
