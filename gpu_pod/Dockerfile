@@ -21,7 +21,7 @@ ENV PYTHONPATH=/app
 RUN mkdir -p /models/omnivoice
 
 # Install Python requirements and OmniVoice repository
-COPY requirements.txt .
+COPY gpu_pod/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Pre-download HuggingFace model cache (optional step for fast cold start)
