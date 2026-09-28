@@ -9,10 +9,10 @@ from dataclasses import dataclass
 from typing import Optional, Dict, Any
 from unittest.mock import MagicMock
 
-# Mock PyTorch and AI dependencies so CPU container can launch UI without loading heavy VRAM weights
+# Mock heavy PyTorch model imports from native omnivoice package so CPU container can launch UI instantly
 for p in [
     'torch', 'torch.nn', 'torch.nn.functional', 'torch.cuda', 'torch.optim',
-    'torchaudio', 'transformers', 'huggingface_hub', 'safetensors', 'librosa', 'einops'
+    'torchaudio', 'transformers', 'librosa', 'einops'
 ]:
     m = MagicMock()
     m.__path__ = []
