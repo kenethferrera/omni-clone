@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OmniVoice — Zero-Shot Voice Cloning Studio</title>
+  <!-- Google Fonts & Lucide Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    :root {
+      --bg-dark: #090d16;
+      --bg-card: rgba(18, 24, 38, 0.75);
+      --bg-card-hover: rgba(28, 36, 56, 0.85);
+      --border-color: rgba(255, 255, 255, 0.08);
+      --border-focus: rgba(99, 102, 241, 0.5);
+      --primary: #6366f1;
+      --primary-hover: #4f46e5;
+      --accent-glow: rgba(99, 102, 241, 0.25);
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --success: #10b981;
+      --danger: #ef4444;
+      --radius: 16px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background-image: 
+        radial-gradient(circle at 15% 15%, rgba(99, 102, 241, 0.12) 0%, transparent 40%),
+        radial-gradient(circle at 85% 85%, rgba(16, 185, 129, 0.08) 0%, transparent 40%);
+      background-attachment: fixed;
+    }
+
+    /* Header */
+    header {
+      border-bottom: 1px solid var(--border-color);
+      backdrop-filter: blur(12px);
+      background: rgba(9, 13, 22, 0.8);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .header-container {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: var(--text-main);
+    }
+    .brand-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #6366f1, #a855f7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 20px var(--accent-glow);
+    }
+    .brand-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.35rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+    .brand-badge {
+      font-size: 0.75rem;
+      background: rgba(99, 102, 241, 0.15);
+      color: #818cf8;
+      padding: 2px 8px;
+      border-radius: 20px;
+      border: 1px solid rgba(99, 102, 241, 0.3);
+    }
+    .status-group {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 0.85rem;
+    }
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--text-muted);
+    }
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--success);
+      box-shadow: 0 0 10px var(--success);
+    }
+
+    /* Layout Main */
+    main {
+      flex: 1;
+      max-width: 1280px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 32px 24px;
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      gap: 28px;
+    }
+    @media (max-width: 960px) {
+      main { grid-template-columns: 1fr; }
+    }
+
+    /* Cards & Glassmorphism */
+    .panel-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius);
+      padding: 24px;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .section-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-main);
+    }
+
+    /* Dropzone / Upload */
+    .dropzone {
+      border: 2px dashed var(--border-color);
+      border-radius: 12px;
+      padding: 24px 16px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      background: rgba(255, 255, 255, 0.01);
+    }
+    .dropzone:hover {
+      border-color: var(--primary);
+      background: rgba(99, 102, 241, 0.05);
+    }
+    .dropzone i {
+      color: var(--primary);
+      margin-bottom: 8px;
+    }
+    .dropzone p {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+    .file-input { display: none; }
+
+    /* Inputs & Textareas */
+    label {
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+      display: block;
+    }
+    input[type="text"], textarea {
+      width: 100%;
+      background: rgba(10, 14, 23, 0.6);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 12px 14px;
+      color: var(--text-main);
+      font-family: inherit;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border 0.2s;
+    }
+    input[type="text"]:focus, textarea:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+    textarea {
+      resize: vertical;
+      min-height: 140px;
+      line-height: 1.6;
+    }
+
+    /* Controls Sliders */
+    .range-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .range-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--primary);
+      cursor: pointer;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+      color: #fff;
+      font-weight: 600;
+      font-size: 1rem;
+      padding: 14px 24px;
+      border-radius: 12px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 4px 20px var(--accent-glow);
+    }
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 24px rgba(99, 102, 241, 0.4);
+    }
+    .btn:active { transform: translateY(0); }
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-color);
+      box-shadow: none;
+      font-size: 0.85rem;
+      padding: 8px 14px;
+    }
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.1);
+      box-shadow: none;
+    }
+
+    /* Player Container */
+    .player-card {
+      background: rgba(15, 21, 35, 0.9);
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      border-radius: 14px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    audio {
+      width: 100%;
+      border-radius: 8px;
+      outline: none;
+    }
+
+    /* History Item */
+    .history-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .history-item {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .history-text {
+      font-size: 0.9rem;
+      color: var(--text-main);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 320px;
+    }
+    .history-meta {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    /* Spinner */
+    .spinner {
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin 0.8s linear infinite;
+      display: none;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="header-container">
+      <a href="#" class="brand">
+        <div class="brand-icon">
+          <i data-lucide="waves"></i>
+        </div>
+        <div>
+          <span class="brand-title">OmniVoice Studio</span>
+          <span class="brand-badge">Zero-Shot AI</span>
+        </div>
+      </a>
+      <div class="status-group">
+        <div class="status-indicator">
+          <div class="dot"></div> Oracle Gateway: <b>Online</b>
+        </div>
+        <div class="status-indicator">
+          <div class="dot"></div> RunPod GPU: <b>Ready ($0/hr Idle)</b>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- Left Column: Voice Reference & Settings -->
+    <div class="panel-card">
+      <div class="section-title">
+        <i data-lucide="mic"></i> Target Voice Reference
+      </div>
+
+      <div>
+        <label>Upload Reference Audio Sample (.wav, .mp3)</label>
+        <div class="dropzone" id="dropzone" onclick="document.getElementById('ref-file').click()">
+          <i data-lucide="upload-cloud" style="width:32px; height:32px;"></i>
+          <p id="ref-file-name">Click or drag & drop target voice sample (3-10s recommended)</p>
+          <input type="file" id="ref-file" class="file-input" accept="audio/*" onchange="handleFileSelect(event)">
+        </div>
+      </div>
+
+      <div>
+        <label for="prompt-text">Optional Reference Transcript</label>
+        <input type="text" id="prompt-text" placeholder="Transcript of the reference sample for enhanced cloning...">
+      </div>
+
+      <div class="section-title" style="margin-top: 10px;">
+        <i data-lucide="sliders"></i> Synthesis Parameters
+      </div>
+
+      <div class="range-group">
+        <div class="range-header">
+          <span>Playback Speed</span>
+          <span id="speed-val">1.0x</span>
+        </div>
+        <input type="range" id="speed" min="0.5" max="2.0" step="0.1" value="1.0" oninput="document.getElementById('speed-val').innerText = this.value + 'x'">
+      </div>
+
+      <div class="range-group">
+        <div class="range-header">
+          <span>Temperature (Creativity)</span>
+          <span id="temp-val">0.7</span>
+        </div>
+        <input type="range" id="temp" min="0.1" max="1.5" step="0.1" value="0.7" oninput="document.getElementById('temp-val').innerText = this.value">
+      </div>
+
+      <div>
+        <label for="api-key">API Key (Optional / Pre-configured)</label>
+        <input type="text" id="api-key" placeholder="Enter X-API-Key..." value="">
+      </div>
+    </div>
+
+    <!-- Right Column: Text Input & Generation Results -->
+    <div style="display: flex; flex-direction: column; gap: 28px;">
+      <div class="panel-card">
+        <div class="section-title">
+          <i data-lucide="sparkles"></i> Speech Synthesis Input
+        </div>
+
+        <div>
+          <label for="input-text">Text Content to Synthesize</label>
+          <textarea id="input-text" placeholder="Type or paste the text you want the AI to speak in the cloned target voice...">Welcome to OmniVoice Cloud Studio! This zero-shot voice cloning engine is powered by RunPod GPU serverless workers and Cloudflare R2 object storage.</textarea>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <button type="button" class="btn-secondary" onclick="insertSampleText()">
+            <i data-lucide="file-text"></i> Load Sample Text
+          </button>
+
+          <button id="generate-btn" class="btn" onclick="generateSpeech()">
+            <div class="spinner" id="btn-spinner"></div>
+            <i data-lucide="wand-2" id="btn-icon"></i>
+            <span>Synthesize Voice</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Result Audio Player Card -->
+      <div class="panel-card" id="result-card" style="display: none;">
+        <div class="section-title">
+          <i data-lucide="music"></i> Synthesized Audio Output
+        </div>
+
+        <div class="player-card">
+          <audio id="audio-player" controls></audio>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span id="generation-meta" style="font-size: 0.8rem; color: var(--text-muted);">Generated in 0.0s</span>
+            <a id="download-btn" href="#" target="_blank" download="omnivoice_speech.wav" class="btn btn-secondary">
+              <i data-lucide="download"></i> Download WAV
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent Generations -->
+      <div class="panel-card">
+        <div class="section-title">
+          <i data-lucide="history"></i> Recent Voice Generations
+        </div>
+        <div class="history-list" id="history-container">
+          <p style="font-size: 0.85rem; color: var(--text-muted);">No recent generations yet. Synthesize your first voice sample above!</p>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    lucide.createIcons();
+    let uploadedRefId = null;
+
+    function handleFileSelect(event) {
+      const file = event.target.files[0];
+      if (file) {
+        document.getElementById('ref-file-name').innerText = file.name + ' (' + (file.size / 1024 / 1024).toFixed(2) + ' MB)';
+        uploadReference(file);
+      }
+    }
+
+    async function uploadReference(file) {
+      const apiKey = document.getElementById('api-key').value;
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const resp = await fetch('/api/reference', {
+          method: 'POST',
+          headers: { 'X-API-Key': apiKey },
+          body: formData
+        });
+        if (resp.ok) {
+          const data = await resp.json();
+          uploadedRefId = data.reference_id;
+          alert('✅ Voice reference sample uploaded successfully!');
+        } else {
+          alert('⚠️ Upload failed: ' + (await resp.text()));
+        }
+      } catch (e) {
+        alert('❌ Network error uploading sample: ' + e.message);
+      }
+    }
+
+    function insertSampleText() {
+      document.getElementById('input-text').value = "OmniVoice is a state-of-the-art open-source zero-shot voice cloning framework capable of copying any target voice using just a short audio sample.";
+    }
+
+    async function generateSpeech() {
+      const text = document.getElementById('input-text').value;
+      const apiKey = document.getElementById('api-key').value;
+      const speed = parseFloat(document.getElementById('speed').value);
+      const temp = parseFloat(document.getElementById('temp').value);
+      const promptText = document.getElementById('prompt-text').value;
+
+      if (!text.trim()) {
+        alert("Please enter text to synthesize.");
+        return;
+      }
+
+      const btn = document.getElementById('generate-btn');
+      const spinner = document.getElementById('btn-spinner');
+      const icon = document.getElementById('btn-icon');
+      
+      btn.disabled = true;
+      spinner.style.display = 'block';
+      icon.style.display = 'none';
+
+      const payload = {
+        text: text,
+        reference_id: uploadedRefId,
+        reference_audio_url: uploadedRefId ? null : "https://actions.google.com/sounds/v1/ambiences/rain_heavy.ogg", // Fallback test
+        prompt_text: promptText,
+        speed: speed,
+        temperature: temp
+      };
+
+      const startTime = Date.now();
+
+      try {
+        const resp = await fetch('/api/tts', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-API-Key': apiKey
+          },
+          body: JSON.stringify(payload)
+        });
+
+        if (resp.ok) {
+          const data = await resp.json();
+          const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
+
+          const resultCard = document.getElementById('result-card');
+          const player = document.getElementById('audio-player');
+          const downloadBtn = document.getElementById('download-btn');
+          const meta = document.getElementById('generation-meta');
+
+          player.src = data.download_url;
+          downloadBtn.href = data.download_url;
+          meta.innerText = `Generated in ${elapsed}s | Job ID: ${data.job_id}`;
+          resultCard.style.display = 'flex';
+          player.play();
+
+          addToHistory(text, data.download_url, elapsed);
+        } else {
+          alert("❌ Synthesis failed: " + (await resp.text()));
+        }
+      } catch (e) {
+        alert("❌ Error connecting to Gateway: " + e.message);
+      } finally {
+        btn.disabled = false;
+        spinner.style.display = 'none';
+        icon.style.display = 'block';
+      }
+    }
+
+    function addToHistory(text, url, elapsed) {
+      const container = document.getElementById('history-container');
+      if (container.children[0] && container.children[0].tagName === 'P') {
+        container.innerHTML = '';
+      }
+
+      const item = document.createElement('div');
+      item.className = 'history-item';
+      item.innerHTML = `
+        <div>
+          <div class="history-text">${text}</div>
+          <div class="history-meta">Duration: ${elapsed}s</div>
+        </div>
+        <a href="${url}" target="_blank" download class="btn btn-secondary">
+          <i data-lucide="play"></i> Play / Download
+        </a>
+      `;
+      container.prepend(item);
+      lucide.createIcons();
+    }
+  </script>
+</body>
+</html>

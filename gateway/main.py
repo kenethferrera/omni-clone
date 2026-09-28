@@ -1,9 +1,12 @@
+import os
 import uuid
 import time
 import logging
 from typing import Optional
 from fastapi import FastAPI, UploadFile, File, Form, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from gateway.config import get_settings
@@ -19,7 +22,7 @@ settings = get_settings()
 app = FastAPI(
     title=settings.APP_NAME,
     version="2.1.0",
-    description="Public API Gateway for OmniVoice Voice Cloning & Text-to-Speech Cloud Inference",
+    description="Public API Gateway & Web Studio Interface for OmniVoice Voice Cloning Cloud Inference",
     docs_url="/docs",
     redoc_url="/redoc"
 )
@@ -33,7 +36,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Simple In-Memory Job Metadata Tracker (or SQLite/Redis in production)
+# Mount Web Studio UI
+static_dir = os.path.join(os.path.dirname(__file__), "static")
+if os.path.exists(static_dir):
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
+
+@app.get("/", include_in_schema=False)
+async def serve_web_interface():
+    """Serve the Web Studio Interface at root route."""
+    index_path = os.path.join(static_dir, "index.html")
+    if os.path.exists(index_path):
+        return FileResponse(index_path)
+    return {"message": settings.APP_NAME}
+
+
+# Simple In-Memory Job Metadata Tracker
 jobs_db = {}
 
 
