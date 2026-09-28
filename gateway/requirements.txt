@@ -8,7 +8,9 @@ httpx>=0.27.2
 python-jose[cryptography]>=3.3.0
 passlib[bcrypt]>=1.7.4
 python-multipart>=0.0.12
+huggingface_hub>=0.25.0
 gradio>=4.44.0
 soundfile>=0.12.1
 numpy>=1.26.0
+
 
