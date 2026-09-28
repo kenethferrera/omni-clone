@@ -1,3 +1,5 @@
+import time
+import asyncio
 import base64
 import httpx
 import logging
@@ -40,7 +42,6 @@ class RunPodInferenceClient:
             }
 
         if self.is_serverless():
-            # Query serverless endpoint health status
             health_url = f"{self.endpoint}/health"
             async with httpx.AsyncClient(timeout=10.0) as client:
                 try:
@@ -51,7 +52,6 @@ class RunPodInferenceClient:
                 except Exception as e:
                     return {"type": "runpod_serverless", "status": "active", "error": str(e)}
 
-        # Direct Pod Health Check
         health_url = f"{self.endpoint}/health"
         async with httpx.AsyncClient(timeout=10.0) as client:
             try:
@@ -77,9 +77,6 @@ class RunPodInferenceClient:
         if not self.endpoint:
             raise ValueError("RUNPOD_API_ENDPOINT is not configured in environment settings.")
 
-        # -------------------------------------------------------------
-        # Path A: RunPod Serverless Endpoint (runsync)
-        # -------------------------------------------------------------
         if self.is_serverless():
             runsync_url = self.endpoint
             if not runsync_url.endswith("/runsync"):
@@ -102,17 +99,41 @@ class RunPodInferenceClient:
                     raise RuntimeError(f"Serverless request error ({resp.status_code}): {resp.text}")
 
                 res_json = resp.json()
-                if res_json.get("status") == "COMPLETED":
+                status_str = res_json.get("status")
+                if status_str == "COMPLETED":
                     output = res_json.get("output", {})
                     if "audio_base64" in output:
                         return base64.b64decode(output["audio_base64"])
                     elif "error" in output:
                         raise RuntimeError(f"Serverless execution error: {output['error']}")
-                raise RuntimeError(f"Serverless job did not complete cleanly: {res_json}")
 
-        # -------------------------------------------------------------
-        # Path B: Direct GPU Pod HTTP Proxy
-        # -------------------------------------------------------------
+                job_id = res_json.get("id")
+                if not job_id:
+                    raise RuntimeError(f"Serverless job failed to return job ID: {res_json}")
+
+                base_url = runsync_url.rsplit('/', 1)[0]
+                status_url = f"{base_url}/status/{job_id}"
+                start_t = time.time()
+                while time.time() - start_t < self.timeout:
+                    await asyncio.sleep(2)
+                    st_resp = await client.get(status_url, headers=self._get_headers())
+                    if st_resp.status_code != 200:
+                        continue
+                    st_json = st_resp.json()
+                    st_curr = st_json.get("status")
+                    if st_curr == "COMPLETED":
+                        output = st_json.get("output", {})
+                        if "audio_base64" in output:
+                            return base64.b64decode(output["audio_base64"])
+                        elif "error" in output:
+                            raise RuntimeError(f"Serverless execution error: {output['error']}")
+                    elif st_curr in ["FAILED", "CANCELLED"]:
+                        out_err = st_json.get("output", {}).get("error", st_json)
+                        raise RuntimeError(f"Serverless job failed with status '{st_curr}': {out_err}")
+
+                raise TimeoutError(f"Serverless job '{job_id}' timed out after {self.timeout} seconds.")
+
+        # Direct Pod HTTP Proxy
         speech_url = f"{self.endpoint}/v1/audio/speech"
         payload = {
             "input_text": text,
@@ -191,13 +212,39 @@ class RunPodInferenceClient:
                     raise RuntimeError(f"Serverless request error ({resp.status_code}): {resp.text}")
 
                 res_json = resp.json()
-                if res_json.get("status") == "COMPLETED":
+                status_str = res_json.get("status")
+                if status_str == "COMPLETED":
                     output = res_json.get("output", {})
                     if "audio_base64" in output:
                         return base64.b64decode(output["audio_base64"])
                     elif "error" in output:
                         raise RuntimeError(f"Serverless execution error: {output['error']}")
-                raise RuntimeError(f"Serverless job did not complete cleanly: {res_json}")
+
+                job_id = res_json.get("id")
+                if not job_id:
+                    raise RuntimeError(f"Serverless job failed to return job ID: {res_json}")
+
+                base_url = runsync_url.rsplit('/', 1)[0]
+                status_url = f"{base_url}/status/{job_id}"
+                start_t = time.time()
+                while time.time() - start_t < self.timeout:
+                    time.sleep(2)
+                    st_resp = client.get(status_url, headers=self._get_headers())
+                    if st_resp.status_code != 200:
+                        continue
+                    st_json = st_resp.json()
+                    st_curr = st_json.get("status")
+                    if st_curr == "COMPLETED":
+                        output = st_json.get("output", {})
+                        if "audio_base64" in output:
+                            return base64.b64decode(output["audio_base64"])
+                        elif "error" in output:
+                            raise RuntimeError(f"Serverless execution error: {output['error']}")
+                    elif st_curr in ["FAILED", "CANCELLED"]:
+                        out_err = st_json.get("output", {}).get("error", st_json)
+                        raise RuntimeError(f"Serverless job failed with status '{st_curr}': {out_err}")
+
+                raise TimeoutError(f"Serverless job '{job_id}' timed out after {self.timeout} seconds.")
 
         # Direct Pod HTTP Proxy
         speech_url = f"{self.endpoint}/v1/audio/speech"
@@ -209,4 +256,3 @@ class RunPodInferenceClient:
 
 
 runpod_client = RunPodInferenceClient()
-
