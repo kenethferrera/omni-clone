@@ -149,9 +149,6 @@ official_demo = build_demo(
     generate_fn=remote_generate_fn
 )
 
-# Mount official Gradio UI on FastAPI app at root path /
-app = gr.mount_gradio_app(app, official_demo, path="/")
-
 
 # Simple In-Memory Job Metadata Tracker
 jobs_db = {}
@@ -342,3 +339,7 @@ async def get_job_status(job_id: str, auth: dict = Depends(verify_authentication
             detail=f"Job '{job_id}' not found"
         )
     return TTSJobResponse(**jobs_db[job_id])
+
+
+# Mount official Gradio UI on FastAPI app at root path / (mounted last so FastAPI routes take precedence)
+app = gr.mount_gradio_app(app, official_demo, path="/")
