@@ -17,7 +17,8 @@ COPY gpu_pod/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application source code
-COPY . /app/gpu_pod/
+COPY gpu_pod /app/gpu_pod
+COPY OmniVoice /app/OmniVoice
 
 EXPOSE 8000
 
