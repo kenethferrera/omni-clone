@@ -3,18 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>OmniVoice — High-Quality TTS & Voice Cloning WebUI</title>
-  <!-- Gradio Theme Styling & Fonts -->
+  <title>OmniVoice Demo</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg-body: #0b0f19;
-      --bg-container: #111827;
-      --bg-block: #1f2937;
-      --border: #374151;
-      --primary: #f97316;
+      --bg-color: #0b0f19;
+      --card-bg: #111827;
+      --block-bg: #1f2937;
+      --border-color: #374151;
+      --primary-orange: #f97316;
       --primary-hover: #ea580c;
       --text-main: #f9fafb;
       --text-muted: #9ca3af;
@@ -23,130 +22,143 @@
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: 'Source Sans Pro', -apple-system, BlinkMacSystemFont, sans-serif;
-      background-color: var(--bg-body);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg-color);
       color: var(--text-main);
       padding: 24px;
       line-height: 1.5;
     }
 
     .gradio-container {
-      max-width: 1100px;
+      max-width: 1200px;
       margin: 0 auto;
-      background: var(--bg-container);
-      border: 1px solid var(--border);
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
       border-radius: var(--radius);
-      padding: 24px;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+      padding: 28px;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.6);
     }
 
-    .header-title {
-      font-size: 2.2rem;
+    h1 {
+      font-size: 1.8rem;
       font-weight: 700;
       color: #fff;
-      margin-bottom: 6px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
+      margin-bottom: 8px;
     }
-    .header-desc {
+    .markdown-desc {
       font-size: 0.95rem;
       color: var(--text-muted);
       margin-bottom: 24px;
-      border-bottom: 1px solid var(--border);
+      line-height: 1.6;
+      border-bottom: 1px solid var(--border-color);
       padding-bottom: 16px;
     }
-    .header-desc a {
-      color: var(--primary);
+    .markdown-desc a {
+      color: var(--primary-orange);
       text-decoration: none;
     }
+    .markdown-desc ul {
+      margin-left: 20px;
+      margin-top: 6px;
+    }
 
-    /* Gradio Tabs */
-    .tabs {
+    /* Gradio Tabs Header */
+    .tabs-header {
       display: flex;
       gap: 4px;
-      border-bottom: 2px solid var(--border);
-      margin-bottom: 20px;
+      border-bottom: 2px solid var(--border-color);
+      margin-bottom: 24px;
     }
-    .tab-btn {
+    .tab-item {
       background: transparent;
       border: none;
       color: var(--text-muted);
-      font-size: 1rem;
+      font-size: 1.05rem;
       font-weight: 600;
-      padding: 10px 20px;
+      padding: 12px 24px;
       cursor: pointer;
       border-bottom: 3px solid transparent;
       transition: all 0.2s;
     }
-    .tab-btn.active {
-      color: var(--primary);
-      border-bottom-color: var(--primary);
+    .tab-item.active {
+      color: var(--primary-orange);
+      border-bottom-color: var(--primary-orange);
     }
 
-    .tab-content { display: none; }
-    .tab-content.active { display: block; }
+    .tab-body { display: none; }
+    .tab-body.active { display: block; }
 
-    /* Grid Layout */
+    /* Columns Layout */
     .row {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 20px;
+      gap: 24px;
     }
-    @media (max-width: 768px) {
+    @media (max-width: 850px) {
       .row { grid-template-columns: 1fr; }
     }
 
     /* Blocks */
     .block {
-      background: var(--bg-block);
-      border: 1px solid var(--border);
+      background: var(--block-bg);
+      border: 1px solid var(--border-color);
       border-radius: var(--radius);
       padding: 16px;
       margin-bottom: 16px;
     }
-    .block-label {
+    .block-title {
       font-size: 0.85rem;
       font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
       color: var(--text-muted);
       margin-bottom: 8px;
       display: block;
     }
 
-    textarea, input[type="text"] {
+    textarea, input[type="text"], select {
       width: 100%;
-      background: var(--bg-container);
-      border: 1px solid var(--border);
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
       border-radius: 6px;
-      padding: 10px;
+      padding: 10px 12px;
       color: #fff;
       font-family: inherit;
       font-size: 0.95rem;
       outline: none;
     }
-    textarea:focus, input[type="text"]:focus {
-      border-color: var(--primary);
+    textarea:focus, input[type="text"]:focus, select:focus {
+      border-color: var(--primary-orange);
     }
-    textarea { min-height: 120px; resize: vertical; }
+    textarea { min-height: 110px; resize: vertical; }
 
-    /* File / Audio Input */
-    .audio-upload {
-      border: 2px dashed var(--border);
+    .accordion {
+      border: 1px solid var(--border-color);
       border-radius: 6px;
-      padding: 20px;
-      text-align: center;
-      cursor: pointer;
-      background: rgba(0,0,0,0.2);
+      margin-bottom: 16px;
+      overflow: hidden;
     }
-    .audio-upload:hover { border-color: var(--primary); }
+    .accordion-header {
+      background: rgba(255,255,255,0.03);
+      padding: 10px 14px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      user-select: none;
+    }
+    .accordion-body {
+      padding: 14px;
+      display: none;
+      background: var(--block-bg);
+    }
+    .accordion.open .accordion-body { display: block; }
 
-    /* Sliders */
-    .slider-group {
+    /* Sliders & Controls */
+    .control-row {
       margin-bottom: 12px;
     }
-    .slider-header {
+    .control-label {
       display: flex;
       justify-content: space-between;
       font-size: 0.85rem;
@@ -155,13 +167,21 @@
     }
     input[type="range"] {
       width: 100%;
-      accent-color: var(--primary);
+      accent-color: var(--primary-orange);
+      cursor: pointer;
     }
 
-    /* Generate Button */
-    .btn-submit {
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.9rem;
+      margin-bottom: 10px;
+    }
+
+    .btn-primary {
       width: 100%;
-      background: var(--primary);
+      background: var(--primary-orange);
       color: #fff;
       font-size: 1.1rem;
       font-weight: 700;
@@ -170,123 +190,204 @@
       border-radius: var(--radius);
       cursor: pointer;
       transition: background 0.2s;
-      margin-top: 8px;
     }
-    .btn-submit:hover { background: var(--primary-hover); }
+    .btn-primary:hover { background: var(--primary-hover); }
 
-    /* Audio Player */
-    audio {
-      width: 100%;
-      margin-top: 10px;
+    .audio-upload-box {
+      border: 2px dashed var(--border-color);
+      border-radius: 6px;
+      padding: 24px;
+      text-align: center;
+      cursor: pointer;
+      background: rgba(0,0,0,0.15);
     }
+    .audio-upload-box:hover { border-color: var(--primary-orange); }
 
-    .badge-status {
-      display: inline-block;
-      font-size: 0.75rem;
-      background: rgba(16, 185, 129, 0.2);
-      color: #10b981;
-      padding: 2px 8px;
-      border-radius: 4px;
-      margin-left: 8px;
+    audio { width: 100%; margin-top: 10px; }
+
+    .sub-info {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 4px;
     }
   </style>
 </head>
 <body>
 
   <div class="gradio-container">
-    <div class="header-title">
-      🎙️ OmniVoice <span class="badge-status">k2-fsa / Official WebUI</span>
-    </div>
-    <div class="header-desc">
-      Official Zero-Shot Voice Cloning and Voice Design Demo powered by <a href="https://github.com/k2-fsa/OmniVoice.git" target="_blank">k2-fsa/OmniVoice</a>.
+    <h1>OmniVoice Demo</h1>
+    <div class="markdown-desc">
+      State-of-the-art text-to-speech model for <b>600+ languages</b>, supporting:
+      <ul>
+        <li><b>Voice Clone</b> — Clone any voice from a reference audio</li>
+        <li><b>Voice Design</b> — Create custom voices with speaker attributes</li>
+      </ul>
+      Built with <a href="https://github.com/k2-fsa/OmniVoice" target="_blank">OmniVoice</a> by Xiaomi AI Lab Next-gen Kaldi team.
     </div>
 
     <!-- Gradio Navigation Tabs -->
-    <div class="tabs">
-      <button class="tab-btn active" onclick="switchTab('zero-shot')">Zero-Shot Voice Cloning</button>
-      <button class="tab-btn" onclick="switchTab('voice-design')">Voice Design</button>
+    <div class="tabs-header">
+      <button class="tab-item active" onclick="switchTab('tab-clone')">Voice Clone</button>
+      <button class="tab-item" onclick="switchTab('tab-design')">Voice Design</button>
     </div>
 
-    <!-- Tab 1: Zero-Shot Voice Cloning -->
-    <div id="zero-shot" class="tab-content active">
+    <!-- ============================================================== -->
+    <!-- TAB 1: Voice Clone -->
+    <!-- ============================================================== -->
+    <div id="tab-clone" class="tab-body active">
       <div class="row">
-        <!-- Inputs Column -->
+        <!-- Left Input Column -->
         <div>
           <div class="block">
-            <span class="block-label">Text to Synthesize</span>
-            <textarea id="text-zero" placeholder="Type the text you want the target voice to speak...">OmniVoice is a high-quality zero-shot voice cloning model developed by k2-fsa.</textarea>
+            <label class="block-title">Text to Synthesize / 待合成文本</label>
+            <textarea id="vc-text" placeholder="Enter the text you want to synthesize...">Welcome to OmniVoice zero-shot voice cloning demo powered by k2-fsa.</textarea>
           </div>
 
           <div class="block">
-            <span class="block-label">Reference Audio Sample</span>
-            <div class="audio-upload" onclick="document.getElementById('file-ref').click()">
-              <p id="file-label">Click or drag & drop target voice sample (.wav, .mp3)</p>
-              <input type="file" id="file-ref" style="display:none;" accept="audio/*" onchange="handleRefUpload(event)">
+            <label class="block-title">Reference Audio / 参考音频</label>
+            <div class="audio-upload-box" onclick="document.getElementById('vc-file').click()">
+              <p id="vc-file-label">Drop Audio Here -or- Click to Upload</p>
+              <input type="file" id="vc-file" style="display:none;" accept="audio/*" onchange="handleFileSelect(event)">
+            </div>
+            <div class="sub-info">Recommended: 3–10 seconds audio.</div>
+          </div>
+
+          <div class="block">
+            <label class="block-title">Reference Text (optional) / 参考音频文本（可选）</label>
+            <input type="text" id="vc-ref-text" placeholder="Transcript of the reference audio. Leave empty to auto-transcribe.">
+          </div>
+
+          <div class="block">
+            <label class="block-title">Language (optional) / 语种 (可选)</label>
+            <select id="vc-lang">
+              <option value="Auto">Auto (Auto-detect language)</option>
+              <option value="English">English</option>
+              <option value="Chinese">Chinese (中文)</option>
+              <option value="Spanish">Spanish</option>
+              <option value="French">French</option>
+              <option value="German">German</option>
+              <option value="Japanese">Japanese</option>
+              <option value="Korean">Korean</option>
+              <option value="Russian">Russian</option>
+            </select>
+          </div>
+
+          <!-- Instruct Accordion -->
+          <div class="accordion" onclick="this.classList.toggle('open')">
+            <div class="accordion-header">Instruct (optional) <span>▼</span></div>
+            <div class="accordion-body" onclick="event.stopPropagation()">
+              <textarea id="vc-instruct" style="min-height:70px;" placeholder="Optional instruction prompt..."></textarea>
             </div>
           </div>
 
-          <div class="block">
-            <span class="block-label">Reference Audio Transcript (Optional)</span>
-            <input type="text" id="prompt-zero" placeholder="Transcript of the reference audio for higher accuracy...">
-          </div>
-
-          <div class="block">
-            <span class="block-label">Inference Controls</span>
-            <div class="slider-group">
-              <div class="slider-header">
-                <span>Speed</span>
-                <span id="speed-val">1.0</span>
+          <!-- Generation Settings Accordion -->
+          <div class="accordion" onclick="this.classList.toggle('open')">
+            <div class="accordion-header">Generation Settings (optional) <span>▼</span></div>
+            <div class="accordion-body" onclick="event.stopPropagation()">
+              <div class="control-row">
+                <div class="control-label"><span>Speed</span><span id="vc-speed-num">1.0</span></div>
+                <input type="range" id="vc-speed" min="0.5" max="1.5" step="0.05" value="1.0" oninput="document.getElementById('vc-speed-num').innerText = this.value">
               </div>
-              <input type="range" id="speed" min="0.5" max="2.0" step="0.1" value="1.0" oninput="document.getElementById('speed-val').innerText = this.value">
-            </div>
 
-            <div class="slider-group">
-              <div class="slider-header">
-                <span>Temperature</span>
-                <span id="temp-val">0.7</span>
+              <div class="control-row">
+                <div class="control-label"><span>Inference Steps</span><span id="vc-steps-num">32</span></div>
+                <input type="range" id="vc-steps" min="4" max="64" step="1" value="32" oninput="document.getElementById('vc-steps-num').innerText = this.value">
               </div>
-              <input type="range" id="temp" min="0.1" max="1.5" step="0.1" value="0.7" oninput="document.getElementById('temp-val').innerText = this.value">
+
+              <div class="control-row">
+                <div class="control-label"><span>Guidance Scale (CFG)</span><span id="vc-cfg-num">2.0</span></div>
+                <input type="range" id="vc-cfg" min="0.0" max="4.0" step="0.1" value="2.0" oninput="document.getElementById('vc-cfg-num').innerText = this.value">
+              </div>
+
+              <div class="checkbox-group">
+                <input type="checkbox" id="vc-denoise" checked>
+                <label for="vc-denoise">Denoise (Default: enabled)</label>
+              </div>
+
+              <div class="checkbox-group">
+                <input type="checkbox" id="vc-preprocess" checked>
+                <label for="vc-preprocess">Preprocess Prompt (Silence removal & trimming)</label>
+              </div>
+
+              <div class="checkbox-group">
+                <input type="checkbox" id="vc-postprocess" checked>
+                <label for="vc-postprocess">Postprocess Output (Remove silences)</label>
+              </div>
             </div>
           </div>
 
-          <button class="btn-submit" onclick="generateZeroShot()">Generate Speech</button>
+          <button class="btn-primary" onclick="generateVoiceClone()">Generate / 生成</button>
         </div>
 
-        <!-- Output Column -->
+        <!-- Right Output Column -->
         <div>
           <div class="block">
-            <span class="block-label">Synthesized Output Audio</span>
-            <div id="output-placeholder" style="text-align:center; padding: 40px 0; color: var(--text-muted);">
-              Generated audio will appear here...
+            <label class="block-title">Output Audio / 合成结果</label>
+            <div id="audio-placeholder" style="text-align:center; padding: 50px 0; color: var(--text-muted);">
+              Generated audio waveform will appear here...
             </div>
-            <audio id="audio-out" controls style="display:none;"></audio>
-            <div id="meta-out" style="font-size:0.8rem; color:var(--text-muted); margin-top:8px;"></div>
+            <audio id="vc-audio-player" controls style="display:none;"></audio>
+          </div>
+
+          <div class="block">
+            <label class="block-title">Status / 状态</label>
+            <textarea id="vc-status" style="min-height:60px;" readonly>Ready.</textarea>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Tab 2: Voice Design -->
-    <div id="voice-design" class="tab-content">
+    <!-- ============================================================== -->
+    <!-- TAB 2: Voice Design -->
+    <!-- ============================================================== -->
+    <div id="tab-design" class="tab-body">
       <div class="row">
         <div>
           <div class="block">
-            <span class="block-label">Text to Synthesize</span>
-            <textarea id="text-design" placeholder="Type text to synthesize...">Welcome to OmniVoice Voice Design interface.</textarea>
+            <label class="block-title">Text to Synthesize / 待合成文本</label>
+            <textarea id="vd-text" placeholder="Enter text to synthesize...">Welcome to OmniVoice Voice Design interface.</textarea>
           </div>
 
           <div class="block">
-            <span class="block-label">Voice Description Prompt</span>
-            <input type="text" id="desc-design" placeholder="e.g. A calm, warm male narrator with a deep resonant tone speaking clearly.">
+            <label class="block-title">Gender / 性别</label>
+            <select id="vd-gender">
+              <option value="Auto">Auto</option>
+              <option value="Male / 男">Male / 男</option>
+              <option value="Female / 女">Female / 女</option>
+            </select>
           </div>
 
-          <button class="btn-submit" onclick="generateVoiceDesign()">Generate Voice Design</button>
+          <div class="block">
+            <label class="block-title">Age / 年龄</label>
+            <select id="vd-age">
+              <option value="Auto">Auto</option>
+              <option value="Young Adult / 青年">Young Adult / 青年</option>
+              <option value="Middle-aged / 中年">Middle-aged / 中年</option>
+              <option value="Elderly / 老年">Elderly / 老年</option>
+            </select>
+          </div>
+
+          <div class="block">
+            <label class="block-title">English Accent / 英文口音</label>
+            <select id="vd-accent">
+              <option value="Auto">Auto</option>
+              <option value="American Accent / 美式口音">American Accent / 美式口音</option>
+              <option value="British Accent / 英国口音">British Accent / 英国口音</option>
+              <option value="Australian Accent / 澳大利亚口音">Australian Accent / 澳大利亚口音</option>
+            </select>
+          </div>
+
+          <button class="btn-primary" onclick="generateVoiceDesign()">Generate / 生成</button>
         </div>
 
         <div>
           <div class="block">
-            <span class="block-label">Voice Design Output</span>
-            <audio id="audio-design-out" controls style="display:none;"></audio>
+            <label class="block-title">Output Audio / 合成结果</label>
+            <audio id="vd-audio-player" controls style="display:none;"></audio>
+          </div>
+          <div class="block">
+            <label class="block-title">Status / 状态</label>
+            <textarea id="vd-status" style="min-height:60px;" readonly>Ready.</textarea>
           </div>
         </div>
       </div>
@@ -297,20 +398,22 @@
     let uploadedRefId = null;
 
     function switchTab(tabId) {
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      document.querySelectorAll('.tab-item').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-body').forEach(c => c.classList.remove('active'));
       
       event.target.classList.add('active');
       document.getElementById(tabId).classList.add('active');
     }
 
-    async function handleRefUpload(e) {
+    async function handleFileSelect(e) {
       const file = e.target.files[0];
       if (!file) return;
 
-      document.getElementById('file-label').innerText = 'Selected: ' + file.name;
+      document.getElementById('vc-file-label').innerText = 'Selected: ' + file.name;
       const formData = new FormData();
       formData.append('file', file);
+
+      document.getElementById('vc-status').value = 'Uploading reference audio...';
 
       try {
         const resp = await fetch('/api/reference', {
@@ -321,31 +424,39 @@
         if (resp.ok) {
           const data = await resp.json();
           uploadedRefId = data.reference_id;
-          alert('Reference audio uploaded!');
+          document.getElementById('vc-status').value = 'Reference audio uploaded successfully! Ready to generate.';
+        } else {
+          document.getElementById('vc-status').value = 'Upload error: ' + (await resp.text());
         }
       } catch (err) {
-        alert('Upload failed: ' + err.message);
+        document.getElementById('vc-status').value = 'Network error uploading audio: ' + err.message;
       }
     }
 
-    async function generateZeroShot() {
-      const text = document.getElementById('text-zero').value;
-      const speed = parseFloat(document.getElementById('speed').value);
-      const temp = parseFloat(document.getElementById('temp').value);
-      const promptText = document.getElementById('prompt-zero').value;
+    async function generateVoiceClone() {
+      const text = document.getElementById('vc-text').value;
+      const speed = parseFloat(document.getElementById('vc-speed').value);
+      const refText = document.getElementById('vc-ref-text').value;
+      const statusBox = document.getElementById('vc-status');
 
-      if (!text) { alert('Please enter text.'); return; }
+      if (!text.trim()) {
+        alert('Please enter text to synthesize.');
+        return;
+      }
+
+      statusBox.value = 'Synthesizing voice on RunPod GPU serverless worker...';
 
       const payload = {
         text: text,
         reference_id: uploadedRefId,
         reference_audio_url: uploadedRefId ? null : "https://actions.google.com/sounds/v1/ambiences/rain_heavy.ogg",
-        prompt_text: promptText,
+        prompt_text: refText,
         speed: speed,
-        temperature: temp
+        temperature: 0.7
       };
 
       const startTime = Date.now();
+
       try {
         const resp = await fetch('/api/tts', {
           method: 'POST',
@@ -359,22 +470,23 @@
         if (resp.ok) {
           const data = await resp.json();
           const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
-          const audio = document.getElementById('audio-out');
-          document.getElementById('output-placeholder').style.display = 'none';
-          audio.src = data.download_url;
-          audio.style.display = 'block';
-          audio.play();
-          document.getElementById('meta-out').innerText = `Completed in ${elapsed}s`;
+          const audioPlayer = document.getElementById('vc-audio-player');
+          document.getElementById('audio-placeholder').style.display = 'none';
+          
+          audioPlayer.src = data.download_url;
+          audioPlayer.style.display = 'block';
+          audioPlayer.play();
+          statusBox.value = `Done. (Elapsed: ${elapsed}s, Job ID: ${data.job_id})`;
         } else {
-          alert('Synthesis failed: ' + (await resp.text()));
+          statusBox.value = 'Synthesis error: ' + (await resp.text());
         }
       } catch (err) {
-        alert('Error: ' + err.message);
+        statusBox.value = 'Connection error: ' + err.message;
       }
     }
 
-    async function generateVoiceDesign() {
-      alert('Voice Design request sent to OmniVoice model.');
+    function generateVoiceDesign() {
+      alert('Voice Design request initiated.');
     }
   </script>
 </body>
