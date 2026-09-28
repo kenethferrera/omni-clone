@@ -9,18 +9,56 @@ from gateway.config import get_settings
 logger = logging.getLogger("omnivoice.runpod")
 settings = get_settings()
 
+# RunPod GraphQL API for pod discovery
+RUNPOD_GRAPHQL_URL = "https://api.runpod.io/graphql"
+POD_QUERY = """
+query {
+  myself {
+    pods {
+      id
+      name
+      desiredStatus
+      runtime {
+        uptimeInSeconds
+        ports {
+          ip
+          isIpPublic
+          privatePort
+          publicPort
+          type
+        }
+      }
+      imageName
+      machine {
+        gpuDisplayName
+      }
+    }
+  }
+}
+"""
+
 
 class RunPodInferenceClient:
     """
-    HTTP Client for sending inference jobs to either:
-    1. RunPod Serverless Endpoints (https://api.runpod.ai/v2/{endpoint_id}/runsync) -> $0 cost when idle!
-    2. Direct Pod HTTP URL (https://{pod_id}-8000.proxy.runpod.net)
+    HTTP Client that auto-discovers running RunPod GPU pods via the GraphQL API.
+    No hardcoded Pod IDs or URLs needed — deploys a new pod from the dashboard
+    and this client finds it automatically.
+
+    Falls back to:
+    1. RunPod Serverless Endpoints if RUNPOD_API_ENDPOINT is set to a serverless URL
+    2. Static Pod URL if RUNPOD_API_ENDPOINT is set to a direct pod proxy URL
     """
 
     def __init__(self):
-        self.endpoint = settings.RUNPOD_API_ENDPOINT.rstrip('/')
+        self.static_endpoint = (settings.RUNPOD_API_ENDPOINT or "").rstrip('/')
         self.api_key = settings.RUNPOD_API_KEY
         self.timeout = settings.RUNPOD_TIMEOUT_SECONDS
+        self.docker_image = settings.RUNPOD_DOCKER_IMAGE
+
+        # Cache for discovered pod URL
+        self._cached_pod_url: Optional[str] = None
+        self._cache_timestamp: float = 0
+        self._cache_ttl: float = 30  # seconds
 
     def _get_headers(self) -> Dict[str, str]:
         headers = {"Content-Type": "application/json"}
@@ -28,21 +66,144 @@ class RunPodInferenceClient:
             headers["Authorization"] = f"Bearer {self.api_key}"
         return headers
 
+    def _discover_pod_sync(self) -> Optional[str]:
+        """
+        Query RunPod GraphQL API to find a running pod with our Docker image.
+        Returns the proxy URL (https://{pod_id}-8000.proxy.runpod.net) or None.
+        """
+        now = time.time()
+        if self._cached_pod_url and (now - self._cache_timestamp) < self._cache_ttl:
+            return self._cached_pod_url
+
+        if not self.api_key:
+            return None
+
+        try:
+            with httpx.Client(timeout=10.0) as client:
+                resp = client.post(
+                    RUNPOD_GRAPHQL_URL,
+                    json={"query": POD_QUERY},
+                    headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
+                )
+                if resp.status_code != 200:
+                    logger.warning(f"RunPod GraphQL query failed: {resp.status_code}")
+                    return self._cached_pod_url  # return stale cache if available
+
+                data = resp.json()
+                pods = data.get("data", {}).get("myself", {}).get("pods", [])
+
+                for pod in pods:
+                    status = pod.get("desiredStatus", "")
+                    image = pod.get("imageName", "")
+
+                    # Match by docker image if configured, otherwise take any RUNNING pod
+                    if status == "RUNNING":
+                        if self.docker_image and self.docker_image not in image:
+                            continue
+                        pod_id = pod["id"]
+                        pod_url = f"https://{pod_id}-8000.proxy.runpod.net"
+                        logger.info(f"Auto-discovered RunPod GPU pod: {pod.get('name', pod_id)} -> {pod_url}")
+                        self._cached_pod_url = pod_url
+                        self._cache_timestamp = now
+                        return pod_url
+
+                logger.warning("No running RunPod GPU pod found matching our Docker image.")
+                self._cached_pod_url = None
+                self._cache_timestamp = now
+                return None
+
+        except Exception as e:
+            logger.error(f"RunPod pod discovery failed: {e}")
+            return self._cached_pod_url  # return stale cache on error
+
+    async def _discover_pod_async(self) -> Optional[str]:
+        """Async version of pod discovery."""
+        now = time.time()
+        if self._cached_pod_url and (now - self._cache_timestamp) < self._cache_ttl:
+            return self._cached_pod_url
+
+        if not self.api_key:
+            return None
+
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.post(
+                    RUNPOD_GRAPHQL_URL,
+                    json={"query": POD_QUERY},
+                    headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
+                )
+                if resp.status_code != 200:
+                    logger.warning(f"RunPod GraphQL query failed: {resp.status_code}")
+                    return self._cached_pod_url
+
+                data = resp.json()
+                pods = data.get("data", {}).get("myself", {}).get("pods", [])
+
+                for pod in pods:
+                    status = pod.get("desiredStatus", "")
+                    image = pod.get("imageName", "")
+
+                    if status == "RUNNING":
+                        if self.docker_image and self.docker_image not in image:
+                            continue
+                        pod_id = pod["id"]
+                        pod_url = f"https://{pod_id}-8000.proxy.runpod.net"
+                        logger.info(f"Auto-discovered RunPod GPU pod: {pod.get('name', pod_id)} -> {pod_url}")
+                        self._cached_pod_url = pod_url
+                        self._cache_timestamp = now
+                        return pod_url
+
+                logger.warning("No running RunPod GPU pod found matching our Docker image.")
+                self._cached_pod_url = None
+                self._cache_timestamp = now
+                return None
+
+        except Exception as e:
+            logger.error(f"RunPod pod discovery failed: {e}")
+            return self._cached_pod_url
+
+    @property
+    def endpoint(self) -> str:
+        """
+        Dynamic endpoint resolution:
+        1. If a static serverless/pod endpoint is configured, use it
+        2. Otherwise, auto-discover from RunPod API
+        """
+        if self.static_endpoint:
+            return self.static_endpoint
+        discovered = self._discover_pod_sync()
+        return discovered or ""
+
     def is_serverless(self) -> bool:
         """Returns True if configured endpoint is a RunPod Serverless URL."""
-        return "api.runpod.ai" in self.endpoint or "/v2/" in self.endpoint
+        ep = self.endpoint
+        return "api.runpod.ai" in ep or "/v2/" in ep
 
     async def check_pod_health(self) -> Dict[str, Any]:
         """Check status and health of the OmniVoice GPU Pod or Serverless Endpoint."""
-        if not self.endpoint:
+        # Try async discovery if no static endpoint
+        if not self.static_endpoint:
+            pod_url = await self._discover_pod_async()
+            if not pod_url:
+                return {
+                    "status": "no_pod",
+                    "message": "No running GPU pod found. Deploy one from the RunPod dashboard.",
+                    "gpu_available": False,
+                    "mode": "auto_discovery"
+                }
+            ep = pod_url
+        else:
+            ep = self.static_endpoint
+
+        if not ep:
             return {
-                "status": "mock_mode",
-                "message": "RUNPOD_API_ENDPOINT not configured.",
+                "status": "not_configured",
+                "message": "No RunPod endpoint configured and no running pod found.",
                 "gpu_available": False
             }
 
         if self.is_serverless():
-            health_url = f"{self.endpoint}/health"
+            health_url = f"{ep}/health"
             async with httpx.AsyncClient(timeout=10.0) as client:
                 try:
                     resp = await client.get(health_url, headers=self._get_headers())
@@ -52,15 +213,18 @@ class RunPodInferenceClient:
                 except Exception as e:
                     return {"type": "runpod_serverless", "status": "active", "error": str(e)}
 
-        health_url = f"{self.endpoint}/health"
+        health_url = f"{ep}/health"
         async with httpx.AsyncClient(timeout=10.0) as client:
             try:
                 response = await client.get(health_url, headers=self._get_headers())
                 if response.status_code == 200:
-                    return response.json()
-                return {"type": "pod_proxy", "status": "unhealthy", "http_code": response.status_code}
+                    data = response.json()
+                    data["mode"] = "auto_discovery" if not self.static_endpoint else "static"
+                    data["pod_url"] = ep
+                    return data
+                return {"type": "pod_proxy", "status": "unhealthy", "http_code": response.status_code, "pod_url": ep}
             except Exception as e:
-                return {"type": "pod_proxy", "status": "unreachable", "error": str(e)}
+                return {"type": "pod_proxy", "status": "unreachable", "error": str(e), "pod_url": ep}
 
     async def generate_speech(
         self,

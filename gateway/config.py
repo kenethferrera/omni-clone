@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     RUNPOD_ENDPOINT_ID: Optional[str] = ""
     RUNPOD_API_ENDPOINT: str = ""
     RUNPOD_TIMEOUT_SECONDS: int = 300
+    RUNPOD_DOCKER_IMAGE: str = ""  # Docker image to match for auto-discovery (e.g. ghcr.io/kenethferrera/omnivoice-serverless)
 
     # Cloudflare R2 Storage Configuration
     R2_ENDPOINT: str = ""
