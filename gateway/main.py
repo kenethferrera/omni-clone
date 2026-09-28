@@ -1,12 +1,19 @@
 import os
-import uuid
+import sys
+import io
 import time
+import uuid
+import base64
 import logging
-from typing import Optional
+from dataclasses import dataclass
+from typing import Optional, Dict, Any
+from unittest.mock import MagicMock
+
+import numpy as np
+import soundfile as sf
+import gradio as gr
 from fastapi import FastAPI, UploadFile, File, Form, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from gateway.config import get_settings
@@ -22,7 +29,7 @@ settings = get_settings()
 app = FastAPI(
     title=settings.APP_NAME,
     version="2.1.0",
-    description="Public API Gateway & Web Studio Interface for OmniVoice Voice Cloning Cloud Inference",
+    description="Public API Gateway & Official Web UI Interface for OmniVoice Voice Cloning",
     docs_url="/docs",
     redoc_url="/redoc"
 )
@@ -36,20 +43,33 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-import sys
-import io
-import base64
-import numpy as np
-import soundfile as sf
-import gradio as gr
 
-# Ensure OmniVoice repository is in sys.path
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__)), "OmniVoice"))
-try:
-    from omnivoice.cli.demo import build_demo
-except ImportError:
-    sys.path.insert(0, "/app/OmniVoice")
-    from omnivoice.cli.demo import build_demo
+# Mock heavy PyTorch model imports from native omnivoice package so CPU container can launch UI instantly
+@dataclass
+class OmniVoiceGenerationConfig:
+    num_step: int = 32
+    guidance_scale: float = 2.0
+    denoise: bool = True
+    preprocess_prompt: bool = True
+    postprocess_output: bool = True
+
+
+omnivoice_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "OmniVoice"))
+if not os.path.exists(os.path.join(omnivoice_dir, "omnivoice")):
+    omnivoice_dir = "/app/OmniVoice"
+
+if omnivoice_dir not in sys.path:
+    sys.path.insert(0, omnivoice_dir)
+
+mock_omni = MagicMock()
+mock_omni.__path__ = [os.path.join(omnivoice_dir, "omnivoice")]
+mock_omni.__spec__ = MagicMock()
+mock_omni.OmniVoice = MagicMock
+mock_omni.OmniVoiceGenerationConfig = OmniVoiceGenerationConfig
+sys.modules["omnivoice"] = mock_omni
+
+# Import build_demo directly from official k2-fsa/OmniVoice repo demo.py
+from omnivoice.cli.demo import build_demo
 
 
 class DummyModel:
@@ -109,7 +129,7 @@ def remote_generate_fn(
         return (samplerate, data), "Done."
 
     except Exception as e:
-        logger.error(f"Remote generation failed: {e}")
+        logger.error(f"Remote GPU generation failed: {e}")
         return None, f"Error: {type(e).__name__}: {e}"
 
 
@@ -120,9 +140,8 @@ official_demo = build_demo(
     generate_fn=remote_generate_fn
 )
 
-# Mount official Gradio UI on FastAPI app at root path
+# Mount official Gradio UI on FastAPI app at root path /
 app = gr.mount_gradio_app(app, official_demo, path="/")
-
 
 
 # Simple In-Memory Job Metadata Tracker
