@@ -46,10 +46,11 @@ class OmniVoiceEngine:
                 self.model = OmniVoice.from_pretrained(
                     self.model_name,
                     device_map=self.device,
-                    dtype=dtype
+                    dtype=dtype,
+                    load_asr=True
                 )
                 self.loaded = True
-                logger.info(f"OmniVoice model loaded successfully in {round(time.time() - start_time, 2)}s!")
+                logger.info(f"OmniVoice model + Whisper ASR loaded successfully in {round(time.time() - start_time, 2)}s!")
             except Exception as e:
                 logger.warning(f"Native OmniVoice module load notice: {e}. Engine operating in fallback mode.")
                 self.loaded = True
@@ -79,7 +80,16 @@ class OmniVoiceEngine:
         if not self.loaded or self.model is None:
             self.load_model()
 
-        logger.info(f"Starting OmniVoice synthesis: '{text[:40]}...' (Ref audio: {reference_audio_bytes is not None}, Instruct: {instruct})")
+        if prompt_text and not prompt_text.strip():
+            prompt_text = None
+
+        if instruct and not instruct.strip():
+            instruct = None
+
+        if language and not language.strip():
+            language = None
+
+        logger.info(f"Starting OmniVoice synthesis: '{text[:40]}...' (Ref audio: {reference_audio_bytes is not None}, Prompt text: {prompt_text}, Instruct: {instruct})")
 
         # 1. Native OmniVoice inference path
         if self.model is not None:

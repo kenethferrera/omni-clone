@@ -84,5 +84,9 @@ def handler(job):
         return {"error": str(e), "status": "failed"}
 
 
+# Warm-load OmniVoice and Whisper ASR models into VRAM on worker startup
+logger.info("Initializing OmniVoice Serverless Worker & Pre-loading Models...")
+engine.load_model()
+
 # Start RunPod Serverless worker loop
 runpod.serverless.start({"handler": handler})
