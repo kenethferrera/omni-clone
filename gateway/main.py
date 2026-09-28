@@ -109,7 +109,8 @@ def remote_generate_fn(
             return None, "Please upload a reference audio."
         try:
             with open(ref_audio, "rb") as f:
-                ref_audio_b64 = base64.b64encode(f.read()).decode("utf-8")
+                b64_str = base64.b64encode(f.read()).decode("utf-8")
+                ref_audio_b64 = f"data:audio/wav;base64,{b64_str}"
         except Exception as e:
             return None, f"Failed to read reference audio: {e}"
 
@@ -130,12 +131,12 @@ def remote_generate_fn(
             mode=mode,
         )
 
-        wav_io = io.BytesIO(audio_bytes)
-        data, samplerate = sf.read(wav_io)
-        if data.dtype == np.float32 or data.dtype == np.float64:
-            data = (data * 32767).astype(np.int16)
+        import tempfile
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
+            f.write(audio_bytes)
+            out_file = f.name
 
-        return (samplerate, data), "Done."
+        return out_file, "Done."
 
     except Exception as e:
         logger.error(f"Remote GPU generation failed: {e}")

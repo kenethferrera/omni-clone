@@ -68,6 +68,12 @@ async def generate_speech(req: SpeechRequest):
                 ref_bytes = base64.b64decode(base64_data)
             except Exception as e:
                 logger.error(f"Error decoding base64 reference audio: {e}")
+        else:
+            import base64
+            try:
+                ref_bytes = base64.b64decode(req.reference_audio)
+            except Exception as e:
+                logger.error(f"Error decoding raw base64 reference audio: {e}")
 
     try:
         audio_wav_bytes = engine.generate(
