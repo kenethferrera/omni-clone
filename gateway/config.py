@@ -1,9 +1,15 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
-from typing import List
+from typing import List, Optional
 
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        case_sensitive=True,
+        extra="ignore"
+    )
+
     # API Gateway Config
     APP_NAME: str = "OmniVoice Cloud API Gateway"
     API_V1_PREFIX: str = "/api"
@@ -18,19 +24,20 @@ class Settings(BaseSettings):
     # CORS
     CORS_ORIGINS: List[str] = ["*"]
 
-    # RunPod Pod Configuration
+    # RunPod Configuration
     RUNPOD_API_KEY: str = ""
-    RUNPOD_POD_ID: str = ""
-    RUNPOD_API_ENDPOINT: str = ""  # Direct Pod HTTP URL e.g. https://xxx-8000.proxy.runpod.net or Serverless URL
+    RUNPOD_POD_ID: Optional[str] = ""
+    RUNPOD_ENDPOINT_ID: Optional[str] = ""
+    RUNPOD_API_ENDPOINT: str = ""
     RUNPOD_TIMEOUT_SECONDS: int = 300
 
     # Cloudflare R2 Storage Configuration
-    R2_ENDPOINT: str = ""  # e.g., https://<account_id>.r2.cloudflarestorage.com
+    R2_ENDPOINT: str = ""
     R2_BUCKET: str = "omnivoice-audio"
     R2_ACCESS_KEY: str = ""
     R2_SECRET_KEY: str = ""
     R2_REGION: str = "auto"
-    R2_PUBLIC_URL_PREFIX: str = ""  # Optional custom domain or R2 public dev URL
+    R2_PUBLIC_URL_PREFIX: Optional[str] = ""
 
     # Audio Limits & Retention
     AUDIO_RETENTION_HOURS: int = 24
@@ -44,10 +51,6 @@ class Settings(BaseSettings):
         "audio/ogg",
         "audio/flac"
     ]
-
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
 
 
 @lru_cache()
