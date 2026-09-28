@@ -1,7 +1,6 @@
 import os
 import base64
 import logging
-import threading
 import runpod
 from gpu_pod.engine import engine
 
@@ -10,18 +9,12 @@ logger = logging.getLogger("omnivoice.serverless")
 
 logger.info("OmniVoice Serverless Worker Initializing...")
 
-# Pre-load OmniVoice and Whisper ASR models in a background daemon thread
-# so that runpod.serverless.start() registers immediately without hitting startup timeouts!
-def _background_model_preload():
-    try:
-        logger.info("Background pre-loading OmniVoice & Whisper ASR models into VRAM...")
-        engine.load_model()
-        logger.info("Models pre-loaded and ready for zero-latency inference!")
-    except Exception as e:
-        logger.error(f"Background model pre-load notice: {e}", exc_info=True)
-
-preload_thread = threading.Thread(target=_background_model_preload, daemon=True)
-preload_thread.start()
+# Pre-load OmniVoice and Whisper ASR models from local pre-baked cache into GPU VRAM
+try:
+    engine.load_model()
+    logger.info("OmniVoice models pre-loaded into VRAM successfully!")
+except Exception as e:
+    logger.error(f"Error loading model at startup: {e}", exc_info=True)
 
 
 def handler(job):
@@ -99,6 +92,6 @@ def handler(job):
         return {"error": str(e), "status": "failed"}
 
 
-# Start RunPod Serverless worker loop immediately
+# Start RunPod Serverless worker loop
 logger.info("Registering with RunPod Serverless Daemon...")
 runpod.serverless.start({"handler": handler})
