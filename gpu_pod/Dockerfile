@@ -11,7 +11,8 @@ ENV PYTHONPATH=/app:/app/OmniVoice
 RUN mkdir -p /models/omnivoice
 
 COPY gpu_pod/requirements.txt ./requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir --no-deps runpod==1.7.7
 
 COPY gpu_pod /app/gpu_pod
 COPY OmniVoice /app/OmniVoice
